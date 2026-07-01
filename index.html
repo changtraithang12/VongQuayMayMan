@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vòng Quay May Mắn - Giới Hạn 1 Lượt Quay</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 30px;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 360px;
+            height: 360px;
+            margin: 0 auto;
+        }
+
+        /* Mũi tên chỉ hướng kết quả */
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 28px solid #ff4757;
+            z-index: 10;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            border: 6px solid #fff;
+            transition: transform 5s cubic-bezier(0.1, 0.8, 0.1, 1);
+            background: #fff;
+        }
+
+        .spin-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #2ed573 0%, #26af5f 100%);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(46, 213, 115, 0.4);
+            transition: all 0.3s ease;
+            width: 80%;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .spin-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(46, 213, 115, 0.6);
+        }
+
+        .spin-btn:active:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .spin-btn:disabled {
+            background: #718093;
+            box-shadow: none;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
+        /* Hộp thoại thông báo kết quả */
+        .result-container {
+            margin-top: 25px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .result {
+            font-size: 22px;
+            font-weight: bold;
+            color: #ff4757;
+            background: #fff;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: inline-block;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .notice {
+            font-size: 13px;
+            color: #f5cd79;
+            margin-top: 15px;
+            font-style: italic;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Vòng Quay May Mắn</h1>
+        <p class="subtitle">Mỗi thiết bị chỉ được tham gia quay 1 lần duy nhất</p>
+        
+        <div class="wheel-container">
+            <div class="pointer"></div>
+            <canvas id="wheel" width="400" height="400"></canvas>
+        </div>
+
+        <button class="spin-btn" id="spinBtn">QUAY NGAY</button>
+        
+        <div class="result-container" id="resultContainer"></div>
+        <div class="notice">*Lưu ý: Hệ thống tự động ghi nhớ lượt quay của bạn.</div>
+    </div>
+
+    <script>
+        // DANH SÁCH QUÀ TẶNG CỦA BẠN (Bạn có thể sửa đổi tên phần thưởng tại đây)
+        const gifts = [
+            "Đồ chơi xếp hình", 
+            "Tai nghe R60i", 
+            "Xe ô tô rolls royce mô hình", 
+            "Mất lượt mất rồi", 
+            "Thêm 1 lượt quay", 
+            "Một cái ôm thật ấm",
+			"Một cái ôm thật ấm2",
+			"Một cái ôm thật ấm3"
+        ];
+        
+        // Mảng màu sắc tương ứng cho từng ô (màu sắc tươi sáng xen kẽ nhau)
+        const colors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#9b59b6", "#ff6b81"];
+
+        const canvas = document.getElementById("wheel");
+        const ctx = canvas.getContext("2d");
+        const spinBtn = document.getElementById("spinBtn");
+        const resultContainer = document.getElementById("resultContainer");
+
+        const size = canvas.width;
+        const center = size / 2;
+        const totalSegments = gifts.length;
+        const arc = Math.PI * 2 / totalSegments;
+
+        let currentAngle = 0;
+        let isSpinning = false;
+
+        // Hàm vẽ vòng quay bằng Canvas
+        function drawWheel() {
+            ctx.clearRect(0, 0, size, size);
+            for (let i = 0; i < totalSegments; i++) {
+                const angle = currentAngle + i * arc;
+                
+                // Vẽ các ô màu hình quạt
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.beginPath();
+                ctx.moveTo(center, center);
+                ctx.arc(center, center, center, angle, angle + arc);
+                ctx.lineTo(center, center);
+                ctx.fill();
+
+                // Viết chữ lên từng ô
+                ctx.save();
+                ctx.fillStyle = "#ffffff";
+                // Tự động thu nhỏ font nếu chữ quá dài
+                ctx.font = "bold 13px 'Segoe UI', sans-serif";
+                ctx.textAlign = "right";
+                ctx.translate(center, center);
+                ctx.rotate(angle + arc / 2);
+                ctx.fillText(gifts[i], center - 25, 5);
+                ctx.restore();
+            }
+        }
+
+        // Kiểm tra xem trình duyệt đã từng quay chưa (bảo mật bằng localStorage)
+        function checkSpunStatus() {
+            const hasSpun = localStorage.getItem("hasSpunWheel_v1");
+            const savedResult = localStorage.getItem("wheelResult_v1");
+
+            if (hasSpun === "true") {
+                spinBtn.disabled = true; 
+                spinBtn.innerText = "BẠN ĐÃ HẾT LƯỢT";
+                resultContainer.innerHTML = `<div class="result" style="color: #57606f;">Kết quả của bạn: ${savedResult}</div>`;
+                return true;
+            }
+            return false;
+        }
+
+        // Xử lý logic khi bấm nút Quay
+        function spin() {
+            if (isSpinning) return;
+            if (checkSpunStatus()) return; // Chặn nếu đã quay trước đó
+
+            isSpinning = true;
+            spinBtn.disabled = true;
+            resultContainer.innerHTML = "<span style='color: #f5cd79; font-weight: bold;'>Vòng quay đang quay...</span>";
+
+            // Tạo một góc quay ngẫu nhiên (vừa quay tối thiểu 5 vòng vừa tạo tính bất ngờ)
+            const randomExtraDegrees = Math.floor(Math.random() * 360);
+            const totalSpinDegrees = 1800 + randomExtraDegrees; // 1800 độ = 5 vòng tròn
+            
+            // Sử dụng CSS transition để thực hiện chuyển động xoay tròn mượt mà
+            canvas.style.transform = `rotate(${totalSpinDegrees}deg)`;
+
+            // Chờ hiệu ứng quay kết thúc (5 giây, khớp với CSS transition)
+            setTimeout(() => {
+                isSpinning = false;
+                
+                // Tính toán góc dừng chính xác dựa trên điểm số 12h (270 độ trong trục Canvas)
+                const actualDegrees = totalSpinDegrees % 360;
+                const pickerDegree = (270 - actualDegrees + 360) % 360;
+                const selectedIndex = Math.floor(pickerDegree / (360 / totalSegments));
+                const finalGift = gifts[selectedIndex];
+
+                // Hiển thị kết quả trúng thưởng đẹp mắt
+                resultContainer.innerHTML = `<div class="result">🎉 Chúc mừng! Bạn trúng: ${finalGift}</div>`;
+
+                // Lưu trạng thái vào bộ nhớ trình duyệt để khóa vĩnh viễn lượt sau
+                localStorage.setItem("hasSpunWheel_v1", "true");
+                localStorage.setItem("wheelResult_v1", finalGift);
+
+                // Khóa giao diện nút bấm
+                spinBtn.innerText = "BẠN ĐÃ HẾT LƯỢT";
+            }, 5000);
+        }
+
+        // Khởi chạy các hàm ban đầu khi tải xong trang web
+        drawWheel();
+        checkSpunStatus(); 
+        spinBtn.addEventListener("click", spin);
+    </script>
+</body>
+</html>
