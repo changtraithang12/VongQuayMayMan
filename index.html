@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vòng Quay May Mắn - Giới Hạn 1 Lượt Quay</title>
+    <title>Vòng Quay May Mắn</title>
     <style>
         * {
             box-sizing: border-box;
@@ -76,7 +76,6 @@
             border-radius: 50%;
             box-shadow: 0 8px 25px rgba(0,0,0,0.4);
             border: 6px solid #fff;
-            transition: transform 5s cubic-bezier(0.1, 0.8, 0.1, 1);
             background: #fff;
         }
 
@@ -151,7 +150,7 @@
 
     <div class="container">
         <h1>Vòng Quay May Mắn</h1>
-        <p class="subtitle">Mỗi thiết bị chỉ được tham gia quay 1 lần duy nhất</p>
+        <p class="subtitle">Chúc mừng 2 con nhợn !</p>
         
         <div class="wheel-container">
             <div class="pointer"></div>
@@ -161,21 +160,34 @@
         <button class="spin-btn" id="spinBtn">QUAY NGAY</button>
         
         <div class="result-container" id="resultContainer"></div>
-        <div class="notice">*Lưu ý: Hệ thống tự động ghi nhớ lượt quay của bạn.</div>
+        
     </div>
 
     <script>
-        // DANH SÁCH QUÀ TẶNG CỦA BẠN (Bạn có thể sửa đổi tên phần thưởng tại đây)
-        const gifts = [
-            "Đồ chơi xếp hình", 
-            "Tai nghe R60i", 
-            "Xe ô tô rolls royce mô hình", 
-            "đi ăn lẩu", 
-            "Thêm 1 lượt quay", 
-            "Một cái ôm thật ấm",
-			"Sạc dự phòng",
-			"Quạt cầm tay"
+        // CÀI ĐẶT TỶ LỆ TRÚNG THƯỞNG TẠI ĐÂY
+        // Bạn có thể chỉnh sửa 'weight' (Trọng số/Tỷ lệ %). Nên để tổng bằng 100 cho dễ quản lý.
+        const giftsData = [
+            	{ name: "Quảng hàn tiên cung", weight: 15 },      
+            	{ name: "Tai nghe R60i", weight: 5 },        
+            	{ name: "Xe ô tô mô hình", weight: 5 },        
+            	{ name: "Mời ăn lẩu", weight: 5 },
+	{ name: "Biệt thự Vinhome", weight: 0 },
+            	{ name: "Thêm 1 lượt quay", weight: 20 },     
+            	{ name: "Một cái ôm ấm áp", weight: 10 },   
+            	{ name: "Sạc dự phòng", weight: 10 },          
+            	{ name: "Quạt cầm tay", weight: 10 },
+	{ name: "Chuột laptop", weight: 0 },
+	{ name: "Xe Rolls-Royce ", weight: 0 },
+	{ name: "Loa JBL go 4 ", weight: 5 },
+	{ name: "Soundcore Select 4 ", weight: 5 },
+	{ name: "Xiaomi band 10 ", weight: 5 },
+	{ name: "Biore gel chống nắng ", weight: 5 }
+	
+   
         ];
+        
+        // Tự động lấy danh sách tên quà để vẽ lên Canvas
+        const gifts = giftsData.map(item => item.name);
         
         // Mảng màu sắc tương ứng cho từng ô (màu sắc tươi sáng xen kẽ nhau)
         const colors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#9b59b6", "#ff6b81"];
@@ -190,91 +202,102 @@
         const totalSegments = gifts.length;
         const arc = Math.PI * 2 / totalSegments;
 
-        let currentAngle = 0;
         let isSpinning = false;
+        let currentRotation = 0; // Lưu trữ góc quay tích lũy để không bị giật hình khi quay tiếp
 
         // Hàm vẽ vòng quay bằng Canvas
         function drawWheel() {
             ctx.clearRect(0, 0, size, size);
+            // Để ô đầu tiên nằm chính giữa góc trên hoặc cân đối, Canvas mặc định 0 rad là hướng 3 giờ.
+            // Ta dịch một chút để căn chỉnh chữ cho đẹp mắt.
             for (let i = 0; i < totalSegments; i++) {
-                const angle = currentAngle + i * arc;
+                const angle = i * arc;
                 
                 // Vẽ các ô màu hình quạt
                 ctx.fillStyle = colors[i % colors.length];
                 ctx.beginPath();
                 ctx.moveTo(center, center);
-                ctx.arc(center, center, center, angle, angle + arc);
+                ctx.arc(center, center, center - 6, angle, angle + arc);
                 ctx.lineTo(center, center);
                 ctx.fill();
 
                 // Viết chữ lên từng ô
                 ctx.save();
                 ctx.fillStyle = "#ffffff";
-                // Tự động thu nhỏ font nếu chữ quá dài
                 ctx.font = "bold 13px 'Segoe UI', sans-serif";
                 ctx.textAlign = "right";
                 ctx.translate(center, center);
                 ctx.rotate(angle + arc / 2);
-                ctx.fillText(gifts[i], center - 25, 5);
+                
+                // Cắt bớt chữ nếu quá dài để tránh tràn viền
+                let text = gifts[i];
+                if(text.length > 18) text = text.substring(0, 16) + "...";
+                
+                ctx.fillText(text, center - 25, 5);
                 ctx.restore();
             }
         }
 
-        // Kiểm tra xem trình duyệt đã từng quay chưa (bảo mật bằng localStorage)
-        function checkSpunStatus() {
-            const hasSpun = localStorage.getItem("hasSpunWheel_v1");
-            const savedResult = localStorage.getItem("wheelResult_v1");
-
-            if (hasSpun === "true") {
-                spinBtn.disabled = true; 
-                spinBtn.innerText = "BẠN ĐÃ HẾT LƯỢT";
-                resultContainer.innerHTML = `<div class="result" style="color: #57606f;">Kết quả của bạn: ${savedResult}</div>`;
-                return true;
+        // Thuật toán chọn phần thưởng ngẫu nhiên dựa trên tỷ lệ (weight)
+        function getPrizeBasedOnWeight() {
+            const totalWeight = giftsData.reduce((sum, item) => sum + item.weight, 0);
+            let random = Math.random() * totalWeight;
+            
+            for (let i = 0; i < giftsData.length; i++) {
+                random -= giftsData[i].weight;
+                if (random <= 0) {
+                    return i; // Trả về chỉ số (index) của món quà trúng
+                }
             }
-            return false;
+            return 0;
         }
 
         // Xử lý logic khi bấm nút Quay
         function spin() {
             if (isSpinning) return;
-            if (checkSpunStatus()) return; // Chặn nếu đã quay trước đó
 
             isSpinning = true;
             spinBtn.disabled = true;
             resultContainer.innerHTML = "<span style='color: #f5cd79; font-weight: bold;'>Vòng quay đang quay...</span>";
 
-            // Tạo một góc quay ngẫu nhiên (vừa quay tối thiểu 5 vòng vừa tạo tính bất ngờ)
-            const randomExtraDegrees = Math.floor(Math.random() * 360);
-            const totalSpinDegrees = 1800 + randomExtraDegrees; // 1800 độ = 5 vòng tròn
+            // 1. Chọn quà theo tỷ lệ cài đặt trước
+            const prizeIndex = getPrizeBasedOnWeight();
             
+            // 2. Tính toán góc quay để mũi tên (ở vị trí 12 giờ tức là 270 độ) chỉ đúng vào ô trúng
+            // Trong Canvas, ô i bắt đầu từ góc (i * góc_mỗi_ô) đến ((i+1) * góc_mỗi_ô) tính từ vị trí 3 giờ xuôi chiều kim đồng hồ.
+            const segmentDegrees = 360 / totalSegments;
+            
+            // Tính góc tâm của ô trúng giải (tính theo độ)
+            const prizeCenterDegrees = (prizeIndex * segmentDegrees) + (segmentDegrees / 2);
+            
+            // Góc cần quay để ô trúng giải lọt vào vị trí mũi tên (270 độ)
+            const targetDegrees = (360 - prizeCenterDegrees + 270) % 360;
+            
+            // Cộng thêm tối thiểu 5 vòng (1800 độ) để tạo hiệu ứng quay vòng mượt mà và đẹp mắt
+            const extraDegrees = 1800; 
+            
+            // Tính toán góc quay đích dựa trên góc hiện tại (để không bị đảo ngược vòng quay)
+            const currentModulo = currentRotation % 360;
+            currentRotation += extraDegrees + (targetDegrees - currentModulo + (targetDegrees < currentModulo ? 360 : 0));
+
             // Sử dụng CSS transition để thực hiện chuyển động xoay tròn mượt mà
-            canvas.style.transform = `rotate(${totalSpinDegrees}deg)`;
+            canvas.style.transition = "transform 5s cubic-bezier(0.1, 0.8, 0.1, 1)";
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
 
             // Chờ hiệu ứng quay kết thúc (5 giây, khớp với CSS transition)
             setTimeout(() => {
                 isSpinning = false;
+                spinBtn.disabled = false; // Mở lại nút quay cho lần tiếp theo
                 
-                // Tính toán góc dừng chính xác dựa trên điểm số 12h (270 độ trong trục Canvas)
-                const actualDegrees = totalSpinDegrees % 360;
-                const pickerDegree = (270 - actualDegrees + 360) % 360;
-                const selectedIndex = Math.floor(pickerDegree / (360 / totalSegments));
-                const finalGift = gifts[selectedIndex];
+                const finalGift = gifts[prizeIndex];
 
                 // Hiển thị kết quả trúng thưởng đẹp mắt
-                resultContainer.innerHTML = `<div class="result">🎉 Chúc mừng! Bạn trúng: ${finalGift}</div>`;
-
-                // Lưu trạng thái vào bộ nhớ trình duyệt để khóa vĩnh viễn lượt sau
-                localStorage.setItem("hasSpunWheel_v1", "true");
-                localStorage.setItem("wheelResult_v1", finalGift);
-
-                // Khóa giao diện nút bấm
-                spinBtn.innerText = "BẠN ĐÃ HẾT LƯỢT";
+                resultContainer.innerHTML = `<div class="result">🎉 Chúc mừng gái: ${finalGift}</div>`;
             }, 5000);
         }
 
-        // Khởi chạy các hàm ban đầu khi tải xong trang web
+        // Khởi chạy vòng quay ban đầu khi tải xong trang web
         drawWheel();
-        checkSpunStatus(); 
         spinBtn.addEventListener("click", spin);
     </script>
 </body>
